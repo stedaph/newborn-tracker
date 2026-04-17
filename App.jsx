@@ -1,6 +1,27 @@
 import React, { useState, useEffect, useMemo } from "react";
 
 export default function App() {
+  const formatDisplayTime = (value) => {
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isToday = d.toDateString() === today.toDateString();
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    if (isToday) return `Today • ${time}`;
+    if (isYesterday) return `Yesterday • ${time}`;
+
+    return d.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric'
+    }) + ` • ${time}`;
+  };
   const [entries, setEntries] = useState([]);
   const [type, setType] = useState("feed");
   const [note, setNote] = useState("");
@@ -12,6 +33,7 @@ export default function App() {
   const [side, setSide] = useState("formula");
 
   const [editingId, setEditingId] = useState(null);
+  const [customTime, setCustomTime] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -24,10 +46,14 @@ export default function App() {
   }, [entries]);
 
   const addEntry = () => {
+    const finalTime = customTime
+      ? new Date(customTime).toLocaleString()
+      : new Date().toLocaleString();
+
     if (editingId) {
       const updated = entries.map((e) =>
         e.id === editingId
-          ? { ...e, type, note, loggedBy: loggedBy === "Other" ? customName : loggedBy, amount, side, unit }
+          ? { ...e, type, note, loggedBy: loggedBy === "Other" ? customName : loggedBy, amount, side, unit, time: finalTime }
           : e
       );
       setEntries(updated);
@@ -41,7 +67,7 @@ export default function App() {
         amount,
         side,
         unit,
-        time: new Date().toLocaleString(),
+        time: finalTime,
       };
       setEntries([newEntry, ...entries]);
     }
@@ -49,6 +75,7 @@ export default function App() {
     setNote("");
     setAmount("");
     setUnit("oz");
+    setCustomTime("");
   };
 
   const deleteEntry = (id) => {
@@ -64,6 +91,16 @@ export default function App() {
     setSide(entry.side || "formula");
     setUnit(entry.unit || "oz");
     setEditingId(entry.id);
+    // pre-fill time (best effort for editing)
+    const parsed = new Date(entry.time);
+    if (!isNaN(parsed)) {
+      const iso = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setCustomTime(iso);
+    } else {
+      setCustomTime("");
+    }
   };
 
   const exportData = () => {
@@ -156,7 +193,7 @@ export default function App() {
       >
         {lastFeed ? (
           <>
-            Last feed: <strong>{lastFeed.time}</strong>
+            Last feed: <strong>{formatDisplayTime(lastFeed.time)}</strong>
             <br />
             {hoursSinceFeed.toFixed(1)} hours ago
             {feedDue && (
@@ -241,6 +278,13 @@ export default function App() {
           )}
 
           <input
+            type="datetime-local"
+            value={customTime}
+            onChange={(e) => setCustomTime(e.target.value)}
+            style={{ padding: 8 }}
+          />
+
+          <input
             placeholder="Notes"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -305,7 +349,7 @@ export default function App() {
         <div key={e.id} style={{ background: "white", padding: 12, marginBottom: 10, borderRadius: 10 }}>
           <strong>{e.type}</strong>
           {e.loggedBy ? ` (${e.loggedBy})` : ""}
-          <div style={{ fontSize: 12, color: "gray" }}>{e.time}</div>
+          <div style={{ fontSize: 12, color: "gray" }}>{formatDisplayTime(e.time)}</div>
 
           {e.type === "feed" && (
             <div>
