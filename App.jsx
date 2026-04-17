@@ -7,7 +7,7 @@ export default function App() {
 
   const [parent, setParent] = useState("Stephane");
   const [amount, setAmount] = useState("");
-  const [side, setSide] = useState("left");
+  const [side, setSide] = useState("formula");
 
   const [editingId, setEditingId] = useState(null);
 
@@ -55,7 +55,7 @@ export default function App() {
     setNote(entry.note);
     setParent(entry.parent);
     setAmount(entry.amount || "");
-    setSide(entry.side || "left");
+    setSide(entry.side || "formula");
     setEditingId(entry.id);
   };
 
@@ -77,6 +77,7 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // --- STATS ---
   const last24h = entries.filter(e => {
     const diff = Date.now() - new Date(e.time).getTime();
     return diff < 24 * 60 * 60 * 1000;
@@ -85,11 +86,40 @@ export default function App() {
   const feedCount = last24h.filter(e => e.type === "feed").length;
   const diaperCount = last24h.filter(e => e.type === "diaper").length;
 
+  // --- LAST FEED + DUE LOGIC ---
+  const lastFeed = entries.find(e => e.type === "feed");
+  let hoursSinceFeed = null;
+  if (lastFeed) {
+    hoursSinceFeed = (Date.now() - new Date(lastFeed.time).getTime()) / 3600000;
+  }
+
+  const feedDue = hoursSinceFeed !== null && hoursSinceFeed >= 3; // 3h threshold
+
   return (
-    <div style={{ padding: 20, fontFamily: "Arial", backgroundColor: "#f5f7fb", minHeight: "100vh" }}>
+    <div style={{ padding: 20, fontFamily: "Arial", backgroundColor: "#eef2f7", minHeight: "100vh" }}>
 
       <h1 style={{ textAlign: "center" }}>🍼 Newborn Tracker</h1>
 
+      {/* LAST FEED */}
+      <div style={{
+        background: feedDue ? "#ffe5e5" : "white",
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 15,
+        textAlign: "center"
+      }}>
+        {lastFeed ? (
+          <>
+            Last feed: <strong>{lastFeed.time}</strong><br />
+            {hoursSinceFeed.toFixed(1)} hours ago
+            {feedDue && <div style={{ color: "red", marginTop: 5 }}>⚠️ Baby may be due for feeding</div>}
+          </>
+        ) : (
+          "No feed logged yet"
+        )}
+      </div>
+
+      {/* STATS */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <div style={{ background: "white", padding: 10, borderRadius: 10, flex: 1 }}>
           🍼 Feeds (24h): <strong>{feedCount}</strong>
@@ -99,6 +129,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* INPUT */}
       <div style={{ background: "white", padding: 15, borderRadius: 12, marginBottom: 20 }}>
 
         <div style={{ marginBottom: 10 }}>
@@ -117,20 +148,32 @@ export default function App() {
 
           {type === "feed" && (
             <>
-              <input placeholder="oz" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 60 }} />
+              <input placeholder="oz / ml" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 80 }} />
               <select value={side} onChange={(e) => setSide(e.target.value)}>
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-                <option value="both">Both</option>
+                <option value="left">Left breast</option>
+                <option value="right">Right breast</option>
+                <option value="both">Both breasts</option>
+                <option value="formula">Formula</option>
+                
               </select>
             </>
           )}
 
           <input placeholder="Notes" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1 }} />
 
-          <button onClick={addEntry}>
+          <button onClick={addEntry} style={{ padding: "10px 16px", fontSize: 16 }}>
             {editingId ? "✏️ Update" : "➕ Add"}
           </button>
+        </div>
+      </div>
+
+      {/* BIG QUICK BUTTONS (night mode friendly) */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <button style={bigBtn} onClick={() => setEntries([{ id: Date.now(), type: "feed", parent, side: "formula", note: "Quick feed", time: new Date().toLocaleString() }, ...entries])}>🍼 FEED</button>
+          <button style={bigBtn} onClick={() => setEntries([{ id: Date.now(), type: "diaper", parent, note: "Wet diaper", time: new Date().toLocaleString() }, ...entries])}>💧 PEE</button>
+          <button style={bigBtn} onClick={() => setEntries([{ id: Date.now(), type: "diaper", parent, note: "Dirty diaper", time: new Date().toLocaleString() }, ...entries])}>💩 POOP</button>
+          <button style={bigBtn} onClick={() => setEntries([{ id: Date.now(), type: "sleep", parent, note: "Nap", time: new Date().toLocaleString() }, ...entries])}>😴 SLEEP</button>
         </div>
       </div>
 
@@ -148,7 +191,14 @@ export default function App() {
           <div style={{ fontSize: 12, color: "gray" }}>{e.time}</div>
 
           {e.type === "feed" && (
-            <div>{e.amount} oz • {e.side}</div>
+            <div>
+              {e.amount && `${e.amount} oz/ml • `}
+              {e.side === "left" && "Left breast"}
+              {e.side === "right" && "Right breast"}
+              {e.side === "both" && "Both breasts"}
+              {e.side === "formula" && "Formula"}
+              
+            </div>
           )}
 
           <div>{e.note}</div>
@@ -163,3 +213,13 @@ export default function App() {
     </div>
   );
 }
+
+const bigBtn = {
+  padding: "18px",
+  fontSize: "18px",
+  fontWeight: "bold",
+  borderRadius: "12px",
+  background: "white",
+  border: "none",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+};
