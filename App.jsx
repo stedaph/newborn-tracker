@@ -148,6 +148,10 @@ export default function App() {
   const feedDue = hoursSinceFeed !== null && hoursSinceFeed >= 3;
 
   const quickAdd = (entry) => {
+    const finalTime = customTime
+      ? new Date(customTime).toLocaleString()
+      : new Date().toLocaleString();
+
     setEntries([
       {
         id: Date.now(),
@@ -155,10 +159,13 @@ export default function App() {
         unit: entry.unit || "oz",
         side: entry.side || "formula",
         ...entry,
-        time: new Date().toLocaleString(),
+        time: finalTime,
       },
       ...entries,
     ]);
+
+    // clear time after quick add so it doesn't accidentally reuse
+    setCustomTime("");
   };
 
   const filteredEntries = useMemo(() => {
