@@ -125,7 +125,7 @@ export default function App() {
 
   const last24h = entries.filter((e) => {
     const diff = Date.now() - new Date(e.time).getTime();
-    return diff < 24 * 60 * 60 * 1000;
+    return diff >= 0 && diff < 24 * 60 * 60 * 1000;
   });
 
   const feedCount = last24h.filter((e) => e.type === "feed").length;
@@ -139,7 +139,13 @@ export default function App() {
     .filter((e) => e.type === "feed" && e.unit === "ml")
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
-  const lastFeed = entries.find((e) => e.type === "feed");
+  const lastFeed = entries.reduce((latest, entry) => {
+    const timestamp = new Date(entry.time).getTime();
+    if (entry.type !== "feed" || !Number.isFinite(timestamp) || timestamp > Date.now()) {
+      return latest;
+    }
+    return !latest || timestamp > new Date(latest.time).getTime() ? entry : latest;
+  }, null);
   let hoursSinceFeed = null;
   if (lastFeed) {
     hoursSinceFeed = (Date.now() - new Date(lastFeed.time).getTime()) / 3600000;
